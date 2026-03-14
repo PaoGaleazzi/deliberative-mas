@@ -7,6 +7,9 @@ from google.genai import types
 import os
 from dotenv import load_dotenv
 import json
+from fastapi.responses import StreamingResponse
+from backend.engine.deliberation_loop import run, run_stream
+
 
 load_dotenv()
 client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
@@ -65,6 +68,19 @@ def deliberate(request: DeliberateRequest):
 class CompareRequest(BaseModel):
     question: str
     responses: dict  # {"Single Agent": "...", "Multi-Agent": "..."}
+
+@app.post("/deliberate-stream")
+def deliberate_stream(request: DeliberateRequest):
+    if request.mode == "single_agent":
+        result = single_agent(request.question)
+        def single_stream():
+            yield f"data: {json.dumps({'event': 'done', **result})}\n\n"
+        return StreamingResponse(single_stream(), media_type="text/event-stream")
+    
+    return StreamingResponse(
+        run_stream(request.question, request.max_iterations),
+        media_type="text/event-stream"
+    )
 
 @app.post("/compare")
 def compare(request: CompareRequest):

@@ -52,7 +52,7 @@ const allEdges = [
     }
 ]
 
-export default function AgentGraph({ activeAgent }) {
+export default function AgentGraph({ activeAgent, currentIteration }) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(allEdges)
 
@@ -60,14 +60,13 @@ export default function AgentGraph({ activeAgent }) {
     setEdges(edges => edges.map(e => ({
       ...e,
       animated: (
-        (activeAgent === "researcher" && e.id === "j-r") ||
         (activeAgent === "critic" && e.id === "r-c") ||
         (activeAgent === "synthesizer" && e.id === "c-s") ||
-        (activeAgent === "judge" && e.id === "s-j")
+        (activeAgent === "judge" && e.id === "s-j") ||
+        (activeAgent === "researcher" && currentIteration > 1 && e.id === "j-r")
       )
     })))
-  }, [activeAgent])
-
+}, [activeAgent, currentIteration])
   return (
     <div style={{ height: 450, background: "#0d0d1a", borderRadius: 12 }}>
       <ReactFlow

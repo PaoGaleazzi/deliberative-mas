@@ -15,26 +15,78 @@ function App() {
   const [savedResults, setSavedResults] = useState({})
   const [comparison, setComparison] = useState(null)
   const [comparing, setComparing] = useState(false)
+  const [streamingTrace, setStreamingTrace] = useState([])
+  const [currentIteration, setCurrentIteration] = useState(null)
 
   const handleSubmit = async () => {
     if (!question.trim()) return
     setLoading(true)
     setResult(null)
     setActiveAgent(null)
-    try {
-      const response = await axios.post("http://127.0.0.1:8000/deliberate", {
+    setStreamingTrace([])
+    setCurrentIteration(null)
+
+    const response = await fetch("http://127.0.0.1:8000/deliberate-stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
         question,
         mode,
         max_iterations: mode === "multi_agent_1" ? 1 : maxIterations
       })
-      setResult(response.data)
-      setSavedResults(prev => ({ ...prev, [mode]: response.data }))
-    } catch (error) {
-      console.error(error)
-    } finally {
-      setLoading(false)
-      setActiveAgent(null)
+    })
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+
+    let currentIter = {}
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      const text = decoder.decode(value)
+      const lines = text.split("\n").filter(l => l.startsWith("data: "))
+
+      for (const line of lines) {
+        const data = JSON.parse(line.slice(6))
+
+        if (data.event === "iteration_start") {
+          setCurrentIteration(data.iteration)
+          currentIter = { iteration: data.iteration }
+        }
+
+        if (data.event === "agent_start") {
+          setActiveAgent(data.agent)
+        }
+
+        if (data.event === "agent_done") {
+          setActiveAgent(null)
+          if (data.agent === "researcher") currentIter.researcher = data.data
+          if (data.agent === "critic") currentIter.critic = data.data
+          if (data.agent === "synthesizer") currentIter.synthesizer = data.data
+          if (data.agent === "judge") {
+            currentIter.judge = data.data
+            setStreamingTrace(prev => [...prev, { ...currentIter }])
+          }
+        }
+
+        if (data.event === "done") {
+          const finalResult = {
+            final_answer: data.final_answer,
+            reasoning_trace: data.reasoning_trace,
+            total_iterations: data.total_iterations,
+            papers: data.papers
+          }
+          setResult(finalResult)
+          setSavedResults(prev => ({ ...prev, [mode]: finalResult }))
+          setActiveAgent(null)
+          setCurrentIteration(null)
+        }
+      }
     }
+
+    setLoading(false)
   }
 
   const handleCompare = async () => {
@@ -64,7 +116,13 @@ function App() {
     <div style={{ maxWidth: 900, margin: "40px auto", padding: "0 20px" }}>
       <h1>Deliberative Multi-Agent System</h1>
 
-      <AgentGraph activeAgent={activeAgent} />
+      <AgentGraph activeAgent={activeAgent} currentIteration={currentIteration} />
+
+      {currentIteration && (
+        <p style={{ color: "#ffd700", textAlign: "center" }}>
+          Iteration {currentIteration} — {activeAgent ? `${activeAgent} thinking...` : "processing..."}
+        </p>
+      )}
 
       <div style={{ marginTop: 24 }}>
         <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
@@ -147,6 +205,14 @@ function App() {
           )}
         </div>
       </div>
+
+      {/* Streaming trace en vivo */}
+      {streamingTrace.length > 0 && !result && (
+        <div style={{ marginTop: 30 }}>
+          <h2>Reasoning in progress...</h2>
+          <ReasoningPanel trace={streamingTrace} />
+        </div>
+      )}
 
       {comparison && (
         <div style={{
