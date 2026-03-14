@@ -15,8 +15,9 @@ Current argument state:
 {argument_state}
 
 Integrate the evidence and counterarguments into a comprehensive, well-structured response.
-Address all counterarguments directly with specific evidence.
-Write in clear prose with as much detail as needed to fully answer the claim.
+You may use markdown formatting: headers, bullet points, bold text, tables.
+Address all counterarguments directly with specific evidence from the papers.
+Write with as much depth and structure as needed to fully answer the claim.
 Return ONLY the refined_position as a string. No preamble.
 """
 
