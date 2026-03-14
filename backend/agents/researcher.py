@@ -10,28 +10,31 @@ load_dotenv()
 client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
 def search_papers(query: str, limit: int = 3) -> list:
-    time.sleep(2)
-    url = "https://api.semanticscholar.org/graph/v1/paper/search"
+    url = "http://export.arxiv.org/api/query"
     params = {
-        "query": query,
-        "limit": limit,
-        "fields": "title,abstract,year,authors,externalIds"
+        "search_query": f"all:{query}",
+        "max_results": limit,
+        "sortBy": "relevance"
     }
     response = requests.get(url, params=params)
-    print(f"Semantic Scholar status: {response.status_code}")
-    print(f"Response: {response.json()}")
     
-    papers = response.json().get("data", [])
+    import xml.etree.ElementTree as ET
+    root = ET.fromstring(response.content)
+    ns = {"atom": "http://www.w3.org/2005/Atom"}
+    
     results = []
-    for p in papers:
-        if p.get("abstract"):
-            doi = p.get("externalIds", {}).get("DOI", "DOI not available")
-            results.append({
-                "title": p["title"],
-                "year": p.get("year"),
-                "doi": doi,
-                "abstract": p["abstract"][:300]
-            })
+    for entry in root.findall("atom:entry", ns):
+        title = entry.find("atom:title", ns).text.strip()
+        abstract = entry.find("atom:summary", ns).text.strip()
+        arxiv_id = entry.find("atom:id", ns).text.strip()
+        
+        results.append({
+            "title": title,
+            "year": None,
+            "doi": arxiv_id,
+            "abstract": abstract[:300]
+        })
+    
     return results
 
 PROMPT_TEMPLATE = """
