@@ -14,7 +14,9 @@ Your task is to UPDATE the REFINED_POSITION field.
 Current argument state:
 {argument_state}
 
-Integrate the evidence and counterarguments into a coherent, improved position.
+Integrate the evidence and counterarguments into a comprehensive, well-structured response.
+Address all counterarguments directly with specific evidence.
+Write in clear prose with as much detail as needed to fully answer the claim.
 Return ONLY the refined_position as a string. No preamble.
 """
 

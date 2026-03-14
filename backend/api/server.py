@@ -2,6 +2,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from backend.engine.deliberation_loop import run
+from google import genai
+from google.genai import types
+import os
+from dotenv import load_dotenv
+import json
+
+load_dotenv()
+client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
 app = FastAPI()
 
@@ -14,9 +22,42 @@ app.add_middleware(
 
 class DeliberateRequest(BaseModel):
     question: str
+    mode: str = "multi_agent"
     max_iterations: int = 3
+
+def single_agent(question: str) -> dict:
+    from backend.agents.researcher import search_papers, extract_keywords
+    
+    keywords = extract_keywords(question)
+    papers = search_papers(keywords)
+    
+    prompt = f"""You are an expert researcher answering a complex question.
+    
+Question: {question}
+
+Here are real academic papers related to this question:
+{json.dumps(papers, indent=2)}
+
+Use these papers as your primary source. Write a comprehensive, well-structured answer.
+Address the question directly, present evidence, consider counterarguments, and reach a clear conclusion.
+"""
+    
+    response = client.models.generate_content(
+        model="gemini-3-flash-preview",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(thinking_budget=8192)
+        )
+    )
+    return {
+        "final_answer": response.text,
+        "reasoning_trace": [],
+        "total_iterations": 1,
+        "papers": papers
+    }
 
 @app.post("/deliberate")
 def deliberate(request: DeliberateRequest):
-    result = run(request.question, request.max_iterations)
-    return result
+    if request.mode == "single_agent":
+        return single_agent(request.question)
+    return run(request.question, request.max_iterations)
