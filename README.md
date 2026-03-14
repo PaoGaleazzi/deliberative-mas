@@ -297,8 +297,3 @@ Every entry in the reasoning trace includes which model produced it. This makes 
 
 This project was developed as part of a research stay exploring deliberation mechanisms in multi-agent AI systems. It serves as an experimental testbed for studying how structured agent interaction and model selection affect the quality and interpretability of collective LLM reasoning.
 
----
-
-## License
-
-MIT
