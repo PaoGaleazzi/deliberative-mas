@@ -1,26 +1,12 @@
 import json
-from backend.agents import researcher, critic, synthesizer, judge
+from backend.engine.deliberation_loop import run
 
-# Estado inicial del argumento
-argument_state = {
-    "claim": "Nuclear energy should be expanded as a climate solution.",
-    "evidence": [],
-    "counterarguments": [],
-    "refined_position": ""
-}
+result = run("Should nuclear energy be expanded as a climate solution?")
 
-print("=== RESEARCHER ===")
-argument_state = researcher.run(argument_state)
-print(json.dumps(argument_state["evidence"], indent=2))
+print("\n=== FINAL ANSWER ===")
+print(result["final_answer"])
 
-print("\n=== CRITIC ===")
-argument_state = critic.run(argument_state)
-print(json.dumps(argument_state["counterarguments"], indent=2))
+print(f"\n=== TOTAL ITERATIONS: {result['total_iterations']} ===")
 
-print("\n=== SYNTHESIZER ===")
-argument_state = synthesizer.run(argument_state)
-print(argument_state["refined_position"])
-
-print("\n=== JUDGE ===")
-result = judge.run(argument_state)
-print(json.dumps(result, indent=2))
+print("\n=== REASONING TRACE ===")
+print(json.dumps(result["reasoning_trace"], indent=2))
