@@ -14,7 +14,8 @@ Your task is to UPDATE the COUNTERARGUMENTS section.
 Current argument state:
 {argument_state}
 
-Identify 1-3 specific weaknesses, inconsistencies, or gaps in the evidence.
+Challenge this argument aggressively. Find 2-3 serious flaws, contradictions,
+or missing evidence. Be specific and harsh. Do not validate the argument.
 Return ONLY the updated counterarguments as a JSON list. No preamble.
 """
 
