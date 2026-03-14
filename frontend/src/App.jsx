@@ -5,6 +5,7 @@ import AgentGraph from "./components/AgentGraph"
 import ReasoningPanel from "./components/ReasoningPanel"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import AgentAvatars from "./components/AgentAvatar"
 
 const MODES = [
   { value: "single_agent", label: "A — Single Agent" },
@@ -31,6 +32,7 @@ export default function App() {
   const [comparing, setComparing] = useState(false)
   const [streamingTrace, setStreamingTrace] = useState([])
   const [currentIteration, setCurrentIteration] = useState(null)
+  const [lastMessages, setLastMessages] = useState({})
 
   const handleSubmit = async () => {
     if (!question.trim()) return
@@ -68,9 +70,13 @@ export default function App() {
           setCurrentIteration(data.iteration)
           currentIter = { iteration: data.iteration }
         }
-        if (data.event === "agent_start") setActiveAgent(data.agent)
+        if (data.event === "agent_start") {
+          setActiveAgent(data.agent)
+          setLastMessages(prev => ({ ...prev, [data.agent]: null }))
+        }
         if (data.event === "agent_done") {
           setActiveAgent(null)
+          setLastMessages(prev => ({ ...prev, [data.agent]: "done ✓" }))
           if (data.agent === "researcher") currentIter.researcher = data.data
           if (data.agent === "critic") currentIter.critic = data.data
           if (data.agent === "synthesizer") currentIter.synthesizer = data.data
@@ -154,6 +160,7 @@ export default function App() {
         transition={{ delay: 0.2, duration: 0.6 }}
       >
         <AgentGraph activeAgent={activeAgent} currentIteration={currentIteration} />
+        <AgentAvatars activeAgent={activeAgent} lastMessages={lastMessages} />
       </motion.div>
 
       {/* Controls */}
