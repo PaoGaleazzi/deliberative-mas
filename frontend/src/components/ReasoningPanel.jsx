@@ -1,110 +1,222 @@
+import { motion } from "framer-motion"
+
+const AGENT_COLORS = {
+  researcher: "var(--agent-researcher)",
+  critic: "var(--agent-critic)",
+  synthesizer: "var(--agent-synthesizer)",
+  judge: "var(--agent-judge)"
+}
+
+const AGENT_LABELS = {
+  researcher: "🔍 Researcher",
+  critic: "⚔️ Critic",
+  synthesizer: "🧬 Synthesizer",
+  judge: "⚖️ Judge"
+}
+
+function AgentBlock({ agent, children }) {
+  return (
+    <div style={{
+      borderLeft: `2px solid ${AGENT_COLORS[agent]}`,
+      paddingLeft: 16,
+      marginBottom: 20
+    }}>
+      <div style={{
+        fontFamily: "'JetBrains Mono'",
+        fontSize: 11,
+        color: AGENT_COLORS[agent],
+        letterSpacing: "0.12em",
+        textTransform: "uppercase",
+        marginBottom: 10
+      }}>
+        {AGENT_LABELS[agent]}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function Card({ children }) {
+  return (
+    <div style={{
+      background: "var(--bg-surface)",
+      border: "1px solid var(--border)",
+      borderRadius: 6,
+      padding: "10px 14px",
+      marginBottom: 8,
+      fontSize: 14,
+      lineHeight: 1.6,
+      color: "var(--text-primary)"
+    }}>
+      {children}
+    </div>
+  )
+}
+
 export default function ReasoningPanel({ trace, papers }) {
   if ((!trace || trace.length === 0) && (!papers || papers.length === 0)) return null
 
   return (
-    <div style={{ marginTop: 30 }}>
+    <div style={{ marginTop: 8 }}>
 
-      {/* Papers usados en Single Agent */}
+      {/* Papers Single Agent */}
       {papers && papers.length > 0 && (
-        <div style={{ marginBottom: 20 }}>
-          <h3 style={{ color: "#4a9eff" }}>📄 Papers used</h3>
+        <div style={{ marginBottom: 32 }}>
+          <div style={{
+            fontFamily: "'JetBrains Mono'",
+            fontSize: 11,
+            color: "var(--accent-blue)",
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            marginBottom: 12
+          }}>
+            📄 Papers used
+          </div>
           {papers.map((p, i) => (
-            <div key={i} style={{ background: "#1a1a2e", borderRadius: 8, padding: 10, marginBottom: 8 }}>
-              <p style={{ margin: 0 }}>{p.title} ({p.year})</p>
+            <Card key={i}>
+              <span style={{ color: "var(--text-primary)" }}>{p.title}</span>
+              {p.year && <span style={{ color: "var(--text-secondary)", fontSize: 12, marginLeft: 8 }}>({p.year})</span>}
               {p.doi && p.doi !== "DOI not available" && (
-                <a href={p.doi} target="_blank" rel="noreferrer" style={{ color: "#4a9eff", fontSize: 12 }}>
-                  {p.doi}
-                </a>
+                <div>
+                  <a href={p.doi} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "var(--accent-blue)" }}>
+                    {p.doi}
+                  </a>
+                </div>
               )}
-            </div>
+            </Card>
           ))}
         </div>
       )}
 
-      {/* Reasoning trace Multi-Agent */}
-      {trace && trace.length > 0 && (
-        <>
-          <h2>Reasoning Trace</h2>
-          {trace.map((iteration) => (
-            <div key={iteration.iteration} style={{
-              background: "#0d0d1a",
-              border: "1px solid #333",
-              borderRadius: 12,
-              padding: 20,
-              marginBottom: 20
+      {/* Reasoning trace */}
+      {trace && trace.length > 0 && trace.map((iteration, idx) => (
+        <motion.div
+          key={iteration.iteration}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: idx * 0.1 }}
+          style={{
+            background: "var(--bg-panel)",
+            border: "1px solid var(--border)",
+            borderRadius: 12,
+            padding: 24,
+            marginBottom: 20
+          }}
+        >
+          {/* Iteration header */}
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            marginBottom: 20,
+            paddingBottom: 12,
+            borderBottom: "1px solid var(--border)"
+          }}>
+            <div style={{
+              fontFamily: "'JetBrains Mono'",
+              fontSize: 11,
+              color: "var(--accent-gold)",
+              letterSpacing: "0.12em",
+              textTransform: "uppercase"
             }}>
-              <h3 style={{ color: "#ffd700", marginTop: 0 }}>
-                Iteration {iteration.iteration}
-              </h3>
-
-              {/* Researcher */}
-              <div style={{ marginBottom: 16 }}>
-                <h4 style={{ color: "#4a9eff", margin: "0 0 8px" }}>🔍 Researcher</h4>
-                {iteration.researcher.evidence.map((e, i) => (
-                  <div key={i} style={{ background: "#1a1a2e", borderRadius: 8, padding: 10, marginBottom: 8 }}>
-                    <p style={{ margin: 0 }}>{e.finding}</p>
-                    <p style={{ margin: "4px 0 0", fontSize: 12, color: "#888" }}>
-                      {e.source} {e.doi && e.doi !== "DOI not available" && (
-                        <a href={e.doi} target="_blank" rel="noreferrer" style={{ color: "#4a9eff" }}>
-                          [link]
-                        </a>
-                      )}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Critic */}
-              <div style={{ marginBottom: 16 }}>
-                <h4 style={{ color: "#ff4a4a", margin: "0 0 8px" }}>⚔️ Critic</h4>
-                {iteration.critic.counterarguments.map((c, i) => (
-                  <div key={i} style={{ background: "#1a1a2e", borderRadius: 8, padding: 10, marginBottom: 8 }}>
-                    <p style={{ margin: 0 }}>{c}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Synthesizer */}
-              <div style={{ marginBottom: 16 }}>
-                <h4 style={{ color: "#4aff9e", margin: "0 0 8px" }}>🧬 Synthesizer</h4>
-                <div style={{ background: "#1a1a2e", borderRadius: 8, padding: 10 }}>
-                  <p style={{ margin: 0 }}>{iteration.synthesizer.refined_position}</p>
-                </div>
-              </div>
-
-              {/* Judge */}
-              <div>
-                <h4 style={{ color: "#ffd700", margin: "0 0 8px" }}>⚖️ Judge</h4>
-                <div style={{ background: "#1a1a2e", borderRadius: 8, padding: 10 }}>
-                  <p style={{ margin: "0 0 8px" }}>
-                    <strong>Decision:</strong>{" "}
-                    <span style={{ color: iteration.judge.decision === "sufficient" ? "#4aff9e" : "#ff4a4a" }}>
-                      {iteration.judge.decision}
-                    </span>
-                  </p>
-                  <p style={{ margin: "0 0 8px" }}>{iteration.judge.feedback}</p>
-                  <div style={{ display: "flex", gap: 16 }}>
-                    {Object.entries(iteration.judge.score).map(([key, val]) => (
-                      <div key={key} style={{ flex: 1 }}>
-                        <p style={{ margin: "0 0 4px", fontSize: 12, color: "#888" }}>{key}</p>
-                        <div style={{ background: "#333", borderRadius: 4, height: 8 }}>
-                          <div style={{
-                            background: "#ffd700",
-                            width: `${val * 100}%`,
-                            height: "100%",
-                            borderRadius: 4
-                          }} />
-                        </div>
-                        <p style={{ margin: "4px 0 0", fontSize: 12, textAlign: "right" }}>{val}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              iteration {iteration.iteration}
             </div>
-          ))}
-        </>
-      )}
+            {iteration.judge && (
+              <div style={{
+                marginLeft: "auto",
+                fontFamily: "'JetBrains Mono'",
+                fontSize: 11,
+                color: iteration.judge.decision === "sufficient" ? "var(--accent-green)" : "var(--accent-red)",
+                letterSpacing: "0.08em"
+              }}>
+                {iteration.judge.decision === "sufficient" ? "✓ sufficient" : "↻ revise"}
+              </div>
+            )}
+          </div>
+
+          {/* Researcher */}
+          {iteration.researcher && (
+            <AgentBlock agent="researcher">
+              {iteration.researcher.evidence.map((e, i) => (
+                <Card key={i}>
+                  <p style={{ margin: 0 }}>{e.finding}</p>
+                  <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--text-secondary)" }}>
+                    {e.source}
+                    {e.doi && e.doi !== "DOI not available" && (
+                      <a href={e.doi} target="_blank" rel="noreferrer" style={{ marginLeft: 8, color: "var(--accent-blue)" }}>
+                        [link]
+                      </a>
+                    )}
+                  </p>
+                </Card>
+              ))}
+            </AgentBlock>
+          )}
+
+          {/* Critic */}
+          {iteration.critic && (
+            <AgentBlock agent="critic">
+              {iteration.critic.counterarguments.map((c, i) => (
+                <Card key={i}>
+                  <p style={{ margin: 0 }}>{c}</p>
+                </Card>
+              ))}
+            </AgentBlock>
+          )}
+
+          {/* Synthesizer */}
+          {iteration.synthesizer && (
+            <AgentBlock agent="synthesizer">
+              <Card>
+                <p style={{ margin: 0 }}>{iteration.synthesizer.refined_position}</p>
+              </Card>
+            </AgentBlock>
+          )}
+
+          {/* Judge */}
+          {iteration.judge && (
+            <AgentBlock agent="judge">
+              <Card>
+                <p style={{ margin: "0 0 10px", fontSize: 14 }}>{iteration.judge.feedback}</p>
+                <div style={{ display: "flex", gap: 16 }}>
+                  {Object.entries(iteration.judge.score).map(([key, val]) => (
+                    <div key={key} style={{ flex: 1 }}>
+                      <div style={{
+                        fontFamily: "'JetBrains Mono'",
+                        fontSize: 10,
+                        color: "var(--text-secondary)",
+                        letterSpacing: "0.1em",
+                        textTransform: "uppercase",
+                        marginBottom: 4
+                      }}>
+                        {key}
+                      </div>
+                      <div style={{ background: "var(--border)", borderRadius: 3, height: 4 }}>
+                        <div style={{
+                          background: "var(--accent-gold)",
+                          width: `${val * 100}%`,
+                          height: "100%",
+                          borderRadius: 3,
+                          transition: "width 0.6s ease"
+                        }} />
+                      </div>
+                      <div style={{
+                        fontFamily: "'JetBrains Mono'",
+                        fontSize: 10,
+                        color: "var(--text-secondary)",
+                        textAlign: "right",
+                        marginTop: 2
+                      }}>
+                        {val}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </AgentBlock>
+          )}
+        </motion.div>
+      ))}
     </div>
   )
 }

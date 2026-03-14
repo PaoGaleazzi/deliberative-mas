@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react"
 import ReactFlow, { 
   Background, 
-  Controls,
   MarkerType,
   useNodesState,
   useEdgesState
@@ -77,7 +76,6 @@ export default function AgentGraph({ activeAgent, currentIteration }) {
         fitView
       >
         <Background color="#333" />
-        <Controls />
       </ReactFlow>
     </div>
   )
