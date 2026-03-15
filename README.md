@@ -29,10 +29,10 @@ Each agent is assigned a specific model based on its cognitive role in the delib
 
 | Agent | Role | Model | Reasoning |
 |---|---|---|---|
-| **Researcher** | Generates initial evidence and hypothesis | `gemini-2.5-flash` (no thinking) | Breadth and speed are sufficient for evidence gathering |
-| **Critic** | Identifies weaknesses and counterarguments | `gemini-2.5-flash` (thinking enabled) | Adversarial analysis benefits from extended internal reasoning |
-| **Synthesizer** | Integrates evidence and critique into a refined position | `gemini-2.5-flash` (thinking enabled) | Resolving contradictions requires careful step-by-step reasoning |
-| **Judge** | Evaluates argument quality and controls the loop | `gemini-2.5-pro` | Most critical role — its decision determines whether the system iterates or terminates |
+| **Researcher** | Generates initial evidence and hypothesis | `gemini-3.1-flash-lite-preview` (no thinking) | Breadth and speed are sufficient for evidence gathering |
+| **Critic** | Identifies weaknesses and counterarguments | `gemini-3-flash-preview` (thinking enabled) | Adversarial analysis benefits from extended internal reasoning |
+| **Synthesizer** | Integrates evidence and critique into a refined position | `gemini-3-flash-preview` (thinking enabled) | Resolving contradictions requires careful step-by-step reasoning |
+| **Judge** | Evaluates argument quality and controls the loop | `gemini-3.1-pro-preview` | Most critical role — its decision determines whether the system iterates or terminates |
 
 This assignment creates an interesting implicit research question: **does the Judge's model quality matter more than the other agents?** Swapping only the Judge from Pro to Flash while holding others constant isolates the contribution of the loop controller.
 
@@ -55,16 +55,16 @@ Rather than free-form text exchange, agents operate on a **shared structured arg
 User Question
       │
       ▼
-Researcher  →  updates evidence         [gemini-2.5-flash]
+Researcher  →  searches arXiv, updates evidence    [gemini-3.1-flash-lite]
       │
       ▼
-Critic      →  updates counterarguments [gemini-2.5-flash + thinking]
+Critic      →  updates counterarguments            [gemini-3-flash + thinking]
       │
       ▼
-Synthesizer →  updates refined_position [gemini-2.5-flash + thinking]
+Synthesizer →  updates refined_position            [gemini-3-flash + thinking]
       │
       ▼
-Judge       →  evaluates quality        [gemini-2.5-pro]
+Judge       →  evaluates quality                   [gemini-3.1-pro]
      / \
     /   \
 sufficient  revise
@@ -78,6 +78,14 @@ The loop implements a **reflection mechanism**: each iteration refines the same 
 
 ---
 
+## Paper Search
+
+The Researcher agent queries **arXiv** to retrieve real academic papers as evidence. Keywords are extracted from the user's question and used to search for relevant papers. DOIs are injected directly from the API — the model only extracts findings from the provided abstracts, never generates citations from training data.
+
+This grounds the deliberation in verifiable academic sources rather than model knowledge alone.
+
+---
+
 ## Reasoning Trace
 
 Every agent interaction is stored in a structured log that records which model produced each output — enabling both interpretability and post-hoc analysis of model contribution.
@@ -87,16 +95,13 @@ Every agent interaction is stored in a structured log that records which model p
   {
     "iteration": 1,
     "researcher": {
-      "evidence": ["..."],
-      "model": "gemini-2.5-flash"
+      "evidence": [{"finding": "...", "source": "...", "doi": "..."}]
     },
     "critic": {
-      "counterarguments": ["..."],
-      "model": "gemini-2.5-flash-thinking"
+      "counterarguments": ["..."]
     },
     "synthesizer": {
-      "refined_position": "...",
-      "model": "gemini-2.5-flash-thinking"
+      "refined_position": "..."
     },
     "judge": {
       "decision": "revise",
@@ -105,8 +110,7 @@ Every agent interaction is stored in a structured log that records which model p
         "evidence": 0.65,
         "logic": 0.70,
         "clarity": 0.80
-      },
-      "model": "gemini-2.5-pro"
+      }
     }
   }
 ]
@@ -120,32 +124,71 @@ Every agent interaction is stored in a structured log that records which model p
 
 | Mode | Description |
 |---|---|
-| **A — Single Agent** | One model responds directly to the question |
+| **A — Single Agent** | One model responds directly to the question using the same arXiv papers |
 | **B — Multi-Agent (1 iteration)** | Full agent pipeline runs once |
 | **C — Multi-Agent + Reflection** | Iterative loop runs up to 3 times based on Judge evaluation |
 
-### Model Configuration Experiments
+### Comparator Agent
 
-| Configuration | Researcher | Critic | Synthesizer | Judge |
+After running any two or more modes on the same question, a **Comparator agent** produces a structured analysis comparing the responses across:
+
+- Strength of core argument
+- Quality and specificity of evidence
+- Depth of counterargument handling
+- Logical consistency
+- Nuance and intellectual honesty
+
+The comparator scores each response 1–5 per criterion and declares a winner based strictly on argumentative quality, not formatting or length.
+
+---
+
+## Planned Experiments
+
+The following experiments are designed to isolate the contribution of each architectural component to final argument quality. Results will be recorded during the research stay.
+
+### Experiment 1 — Deliberation Mode Comparison
+
+**Question:** Does iterative deliberation improve argument quality over single-pass responses?
+
+**Method:** Run the same question in modes A, B, and C. Record Judge scores (evidence, logic, clarity) and total iterations per mode.
+
+**Hypothesis:** Mode C will produce higher Judge scores than Mode B, and Mode B higher than Mode A.
+
+| Mode | Evidence | Logic | Clarity | Iterations |
 |---|---|---|---|---|
-| **Base** | Flash | Flash + thinking | Flash + thinking | Pro |
-| **No reasoning** | Flash | Flash | Flash | Pro |
-| **Degraded Judge** | Flash | Flash + thinking | Flash + thinking | Flash |
-| **All Pro** | Pro | Pro | Pro | Pro |
+| A — Single Agent | — | — | — | 1 |
+| B — Multi-Agent (1 iter) | | | | 1 |
+| C — Multi-Agent + Loops | | | | 1–3 |
 
-Holding agent roles constant while varying model assignments allows isolation of each agent's contribution to final argument quality.
+---
 
-### Evaluation Metrics
+### Experiment 2 — Impact of the Judge Model
 
-Each response is scored by the Judge agent across three dimensions:
+**Question:** Does the Judge's model quality affect the overall quality of deliberation?
 
-| Metric | Description |
-|---|---|
-| `evidence` | Quality and relevance of supporting evidence |
-| `logic` | Internal coherence of the argument |
-| `clarity` | Accessibility and precision of the formulation |
+**Method:** Run the same question with two configurations — Pro Judge vs Flash-lite Judge — holding all other agents constant.
 
-Scores are recorded per iteration and per model configuration, enabling quantitative comparison across experimental conditions.
+**Hypothesis:** A weaker Judge will terminate iterations prematurely, producing lower-quality final arguments.
+
+| Configuration | Judge Model | Avg Score | Iterations |
+|---|---|---|---|
+| Base | gemini-3.1-pro | | |
+| Degraded Judge | gemini-3.1-flash-lite | | |
+
+---
+
+### Experiment 3 — Impact of Agent Reasoning
+
+**Question:** Does enabling extended thinking in the Critic and Synthesizer improve argument quality?
+
+**Method:** Compare base configuration (Flash + thinking) against no-reasoning configuration (Flash, thinking disabled) for Critic and Synthesizer.
+
+**Hypothesis:** Extended thinking in adversarial and synthesis roles produces more nuanced counterarguments and better-integrated positions.
+
+| Configuration | Critic | Synthesizer | Avg Score |
+|---|---|---|---|
+| Base | Flash + thinking | Flash + thinking | |
+| No reasoning | Flash | Flash | |
 
 ---
 
@@ -155,9 +198,10 @@ The system includes a web interface that visualizes the deliberation process in 
 
 **Key components:**
 - **Agent graph** — Interactive node-link diagram showing which agents are active, which model each uses, and how they communicate
-- **Animated edges** — Lines appear when an agent sends a message to another
-- **Dialogue bubbles** — Each agent's output appears as a labeled message
-- **Reasoning panel** — Lateral panel with the full iteration-by-iteration transcript and Judge scores
+- **Animated avatars** — Geometric figures per agent that pulse when active, with dialogue bubbles showing current status
+- **Animated edges** — Lines animate when an agent sends a message to another
+- **Reasoning panel** — Full iteration-by-iteration transcript with Judge scores and paper links
+- **Comparator panel** — Structured comparison table across modes with winner declaration
 
 ---
 
@@ -167,10 +211,10 @@ The system includes a web interface that visualizes the deliberation process in 
 deliberative-mas/
 ├── backend/
 │   ├── agents/
-│   │   ├── researcher.py     ← gemini-2.5-flash, no thinking
-│   │   ├── critic.py         ← gemini-2.5-flash, thinking enabled
-│   │   ├── synthesizer.py    ← gemini-2.5-flash, thinking enabled
-│   │   └── judge.py          ← gemini-2.5-pro
+│   │   ├── researcher.py     ← gemini-3.1-flash-lite, no thinking, arXiv search
+│   │   ├── critic.py         ← gemini-3-flash, thinking enabled
+│   │   ├── synthesizer.py    ← gemini-3-flash, thinking enabled
+│   │   └── judge.py          ← gemini-3.1-pro, defensive JSON parsing
 │   ├── engine/
 │   │   └── deliberation_loop.py
 │   └── api/
@@ -179,7 +223,7 @@ deliberative-mas/
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── AgentGraph.jsx
-│   │   │   ├── DialogBubble.jsx
+│   │   │   ├── AgentAvatar.jsx
 │   │   │   └── ReasoningPanel.jsx
 │   │   └── App.jsx
 │   └── package.json
@@ -196,10 +240,11 @@ deliberative-mas/
 
 | Layer | Technology |
 |---|---|
-| LLM | Google Gemini API (`google-generativeai`) |
-| Models | `gemini-2.5-flash`, `gemini-2.5-flash` (thinking), `gemini-2.5-pro` |
+| LLM | Google Gemini API (`google-genai`) |
+| Models | `gemini-3.1-flash-lite-preview`, `gemini-3-flash-preview`, `gemini-3.1-pro-preview` |
+| Paper search | arXiv API |
 | Backend | Python + FastAPI |
-| Frontend | React + React Flow + Framer Motion |
+| Frontend | React + Vite + React Flow + Framer Motion |
 | Environment | uv |
 
 ---
@@ -214,15 +259,14 @@ deliberative-mas/
 ### Backend
 
 ```bash
-git clone https://github.com/<your-username>/deliberative-mas.git
+git clone https://github.com/PaoGaleazzi/deliberative-mas.git
 cd deliberative-mas
 
 uv sync
 
 echo "GOOGLE_API_KEY=your_key_here" > .env
 
-cd backend
-uvicorn api.server:app --reload
+uv run uvicorn backend.api.server:app --reload
 ```
 
 ### Frontend
@@ -233,6 +277,8 @@ npm install
 npm run dev
 ```
 
+Open `http://localhost:5173` in your browser.
+
 ---
 
 ## API Reference
@@ -241,18 +287,21 @@ npm run dev
 
 ```json
 {
-  "question": "Should nuclear energy be expanded as a climate solution?",
+  "question": "Do multi-agent systems outperform single models on complex reasoning tasks?",
   "mode": "multi_agent",
   "max_iterations": 3
 }
 ```
 
-**Response:**
+### `POST /compare`
+
 ```json
 {
-  "final_answer": "...",
-  "reasoning_trace": [...],
-  "total_iterations": 2
+  "question": "...",
+  "responses": {
+    "A — Single Agent": "...",
+    "C — Multi-Agent + Loops": "..."
+  }
 }
 ```
 
@@ -261,35 +310,37 @@ npm run dev
 ## Tests
 
 ```bash
-pytest tests/
-pytest tests/test_loop.py -v
+uv run pytest tests/ -v
 ```
 
-Test coverage includes individual agent output validation, full loop execution, and API response format.
+13 tests covering individual agent output validation, full loop execution, and API response format.
 
 ---
 
 ## Design Decisions
 
-**Structured argument state over free-form exchange**  
+**Structured argument state over free-form exchange**
 Unconstrained agent loops tend to produce repetition and argument drift after 2+ iterations. Having each agent update only its section of a shared structure enforces focus and produces measurable convergence.
 
-**Asymmetric model assignment**  
+**Asymmetric model assignment**
 Using different models per agent reflects the cognitive asymmetry of the roles. The Researcher needs breadth; the Critic and Synthesizer need depth of reasoning; the Judge needs the highest reliability since its decision controls the entire loop.
 
-**Judge as loop controller**  
+**Judge as loop controller**
 Rather than running a fixed number of iterations, the Judge decides whether quality warrants another cycle. This creates adaptive deliberation that terminates when sufficient quality is reached.
 
-**Model recorded in reasoning trace**  
-Every entry in the reasoning trace includes which model produced it. This makes post-hoc analysis of model contribution possible without re-running experiments.
+**DOIs injected from API, not generated by model**
+The Researcher extracts keywords, searches arXiv, and receives real paper metadata. DOIs are matched by title similarity and injected into the evidence — the model never generates citations from training data.
+
+**Streaming over batch responses**
+The deliberation loop emits Server-Sent Events as each agent completes, allowing the frontend to visualize reasoning in real time rather than waiting for the full result.
 
 ---
 
 ## Limitations and Future Work
 
+- Paper search currently uses arXiv, optimized for AI/ML/CS questions. Integration with Semantic Scholar (API key pending) will expand coverage to other domains.
 - Agent prompts are optimized for analytical questions; highly ambiguous questions may reduce output structure reliability.
-- The evaluation rubric reflects a specific normative view of argument quality. Future versions could allow configurable criteria.
-- Possible extensions: persistent memory across sessions, configurable agent topologies, multi-provider model mixing, agent communication protocols.
+- Possible extensions: persistent memory across sessions, configurable agent topologies, multi-provider model mixing, export of reasoning traces for offline analysis.
 
 ---
 
@@ -297,3 +348,8 @@ Every entry in the reasoning trace includes which model produced it. This makes 
 
 This project was developed as part of a research stay exploring deliberation mechanisms in multi-agent AI systems. It serves as an experimental testbed for studying how structured agent interaction and model selection affect the quality and interpretability of collective LLM reasoning.
 
+---
+
+## License
+
+MIT
